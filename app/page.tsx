@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import StatusBadge from '@/components/StatusBadge';
-import Timeline from '@/components/Timeline';
+
+const ALL_STAGES = ['Order Created','Manufacturing Started','Quality Check','Ready to Ship','Delivered'];
 
 export default function Home() {
   const [trackingId, setTrackingId] = useState('');
@@ -26,11 +27,14 @@ export default function Home() {
     setLoading(false);
   }
 
+  const timeline: string[] = order?.timeline ?? [];
+
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center py-16 px-4">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">PartsFlow</h1>
       <p className="text-gray-500 mb-8">Track your manufacturing order</p>
-      <div className="bg-white rounded-2xl shadow-sm border p-6 w-full max-w-md">
+
+      <div className="bg-white rounded-2xl shadow-sm border p-6 w-full max-w-lg">
         <label className="block text-sm font-medium text-gray-700 mb-2">Enter Tracking ID</label>
         <input
           value={trackingId}
@@ -50,7 +54,9 @@ export default function Home() {
       </div>
 
       {order && (
-        <div className="bg-white rounded-2xl shadow-sm border p-6 w-full max-w-md mt-4">
+        <div className="bg-white rounded-2xl shadow-sm border p-6 w-full max-w-lg mt-4">
+
+          {/* Header */}
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wide">Tracking ID</p>
@@ -58,15 +64,48 @@ export default function Home() {
             </div>
             <StatusBadge status={order.status} />
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+
+          {/* Order details */}
+          <div className="grid grid-cols-2 gap-3 text-sm mb-5">
             <div><p className="text-gray-400">Customer</p><p className="font-medium">{order.customerName}</p></div>
             <div><p className="text-gray-400">Part</p><p className="font-medium">{order.partName}</p></div>
             <div><p className="text-gray-400">Quantity</p><p className="font-medium">{order.quantity}</p></div>
             <div><p className="text-gray-400">Est. Delivery</p><p className="font-medium">{order.deliveryDate}</p></div>
           </div>
-          <hr className="my-3" />
-          <p className="text-sm font-medium text-gray-700 mb-1">Progress</p>
-          <Timeline completed={order.timeline ?? []} />
+
+          <hr className="mb-5" />
+
+          {/* Horizontal timeline */}
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Order Progress</p>
+          <div className="flex items-center">
+            {ALL_STAGES.map((stage, index) => {
+              const done = timeline.includes(stage);
+              const isLast = index === ALL_STAGES.length - 1;
+              return (
+                <div key={stage} className="flex items-center flex-1 last:flex-none">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2
+                      ${done
+                        ? 'bg-blue-500 border-blue-500 text-white'
+                        : 'bg-white border-gray-300 text-gray-400'
+                      }`}>
+                      {done ? '✓' : index + 1}
+                    </div>
+                    <span className={`text-xs text-center leading-tight w-14
+                      ${done ? 'text-blue-700 font-medium' : 'text-gray-400'}`}>
+                      {stage}
+                    </span>
+                  </div>
+                  {!isLast && (
+                    <div className={`flex-1 h-0.5 mx-1 mb-5
+                      ${timeline.includes(ALL_STAGES[index + 1]) ? 'bg-blue-400' : 'bg-gray-200'}`}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
         </div>
       )}
     </main>
