@@ -17,9 +17,9 @@ const TIMELINE_MAP: Record<string,string[]> = {
 function genId() { return 'TRACK-' + Math.floor(1000 + Math.random() * 9000); }
 
 export default function AdminPage() {
-  const [orders, setOrders]       = useState<any[]>([]);
-  const [form, setForm]           = useState({ customerName:'', partName:'', quantity:'', deliveryDate:'' });
-  const [summary, setSummary]     = useState('');
+  const [orders, setOrders]         = useState<any[]>([]);
+  const [form, setForm]             = useState({ customerName:'', partName:'', quantity:'', deliveryDate:'' });
+  const [summary, setSummary]       = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function fetchOrders() {
@@ -51,8 +51,37 @@ export default function AdminPage() {
     if (orders.length === 0) { setSummary('No orders yet.'); return; }
     const counts: Record<string,number> = {};
     orders.forEach(o => { counts[o.status] = (counts[o.status] ?? 0) + 1; });
-    const parts = Object.entries(counts).map(([s,n]) => `${n} order${n>1?'s':''} ${s.toLowerCase()}`);
-    setSummary(`Total ${orders.length} orders: ${parts.join(', ')}.`);
+
+    const delayed = orders.filter(o => o.status === 'Delayed').map(o => o.customerName);
+    const readyToShip = orders.filter(o => o.status === 'Ready to Ship');
+    const delivered = orders.filter(o => o.status === 'Delivered').length;
+
+    const lines = [
+      `📦 Total Orders: ${orders.length}`,
+      ...Object.entries(counts).map(([s,n]) => {
+        const icons: Record<string,string> = {
+          'In Production': '🔧',
+          'QC': '🔍',
+          'Ready to Ship': '🚚',
+          'Delivered': '✅',
+          'Delayed': '⚠️',
+        };
+        return `${icons[s] ?? '•'} ${s}: ${n} order${n>1?'s':''}`;
+      }),
+      ``,
+      `📊 Insights:`,
+      delivered > 0
+        ? `✅ ${delivered} order${delivered>1?'s have':' has'} been successfully delivered.`
+        : `⏳ No orders delivered yet.`,
+      readyToShip.length > 0
+        ? `🚚 ${readyToShip.length} order${readyToShip.length>1?'s are':' is'} ready to ship — action needed.`
+        : `📭 No orders ready to ship right now.`,
+      delayed.length > 0
+        ? `⚠️ ${delayed.length} delayed order${delayed.length>1?'s':''}: ${delayed.join(', ')} — needs attention.`
+        : `✅ No delayed orders.`,
+    ];
+
+    setSummary(lines.join('\n'));
   }
 
   const inp = 'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
@@ -77,13 +106,27 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* Summary */}
+        {/* AI Summary */}
         <div className="bg-white rounded-2xl shadow-sm border p-6 mb-6">
-          <h2 className="font-semibold text-gray-800 mb-3">Order Summary</h2>
+          <h2 className="font-semibold text-gray-800 mb-3">AI Order Summary</h2>
           <button onClick={generateSummary} className="bg-gray-900 hover:bg-gray-700 text-white rounded-lg px-5 py-2 text-sm font-medium transition mb-3">
-            Generate Summary
+            ✦ Generate Summary
           </button>
-          {summary && <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-4 border">{summary}</p>}
+          {summary && (
+            <div className="bg-gray-50 rounded-xl border p-4 space-y-1">
+              {summary.split('\n').map((line, i) => (
+                <p key={i} className={`text-sm ${
+                  line.startsWith('📦') || line.startsWith('📊')
+                    ? 'font-bold text-gray-900 mt-2'
+                    : line === ''
+                    ? 'my-1'
+                    : 'text-gray-700'
+                }`}>
+                  {line || '\u00A0'}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Orders Table */}
@@ -120,7 +163,6 @@ export default function AdminPage() {
                       </td>
                     </tr>
 
-                    {/* Expanded Timeline Row */}
                     {expandedId === o.id && (
                       <tr key={o.id + '-timeline'} className="bg-blue-50">
                         <td colSpan={8} className="px-6 py-4">
